@@ -7,6 +7,8 @@
 const char* host = "raspberrypi.local"; // or Raspberry Pi's IP
 const uint16_t port = 80;
 
+int connectionAttempts = 0;
+
 void setup() {
   Serial.begin(115200);
   WiFi.begin(ssid, password);
@@ -18,10 +20,16 @@ void setup() {
   Serial.println("Connected to Raspberry Pi!");
 
   WiFiClient client;
-  if (!client.connect(host, port)) {
-    Serial.println("Connection to Raspberry Pi failed");
+  while (!client.connect(host, port)) {
+  Serial.println("Connection to Raspberry Pi failed, retrying...");
+  connectionAttempts++;
+  if (connectionAttempts > 5) {
+    Serial.println("Failed to connect after 5 attempts, going to sleep");
+    // Put the ESP32 into deep sleep mode here, if desired
     return;
   }
+  delay(1000); // Wait a second before trying to reconnect
+}
 
   Serial.println("Connected to Raspberry Pi server");
 
