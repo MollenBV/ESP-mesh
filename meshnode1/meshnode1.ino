@@ -3,6 +3,8 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include "secret.h"
+#define STATION_SSID "TestAP"
+#define STATION_PASSWORD "test1234"
 //setup mesh
 #define   MESH_PREFIX     "ESPMESH"
 #define   MESH_PASSWORD   "test1234"
@@ -25,12 +27,13 @@ Task tasksendData( TASK_SECOND * 15 , TASK_FOREVER, &sendData );
 //mesh setup
 void meshsetup() {
   mesh.setDebugMsgTypes( ERROR | STARTUP );  // set before init() so that you can see startup messages
-  mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT); // mesh init
+  mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT, WIFI_AP_STA, 1); // mesh init
   mesh.onReceive(&receivedCallback);
   mesh.onNewConnection(&newConnectionCallback);
   mesh.onChangedConnections(&changedConnectionCallback);
   mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
   mesh.setRoot(true);  
+  mesh.setContainsRoot(true);   
   while (!mesh.getNodeList().size()) {
     delay(1000); // Wait for 1 second
     mesh.update(); // Update the mesh network
@@ -98,13 +101,11 @@ void setup() {
   Serial.begin(115200);
   //mesh setup
   meshsetup();
-  //wait till the mesh is connected
   userScheduler.addTask(tasksendData);
   tasksendData.enable();
   if (tasksendData.isEnabled()) {
     Serial.println("tasksendData is enabled");
   } 
-
 }
 
 void loop() {

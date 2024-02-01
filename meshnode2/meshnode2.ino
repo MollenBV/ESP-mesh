@@ -1,5 +1,6 @@
 #include <WiFi.h>
 #include <painlessMesh.h>
+#include <ArduinoJson.h>
 
 //setup mesh
 #define   MESH_PREFIX     "ESPMESH"
@@ -9,26 +10,26 @@
 Scheduler userScheduler; // to control your personal task
 painlessMesh  mesh;
 
+uint32_t rootnodeID = 2223841881; // root node ID
 int nodeNummer = 2; // node number
 
-//create functions
-void sendMessage(); 
+//create function
 void sendData();
 
 //create tasks
-Task taskSendMessage( TASK_SECOND * 1 , TASK_FOREVER, &sendMessage );
-Task tasksendData( TASK_SECOND * 1 , TASK_FOREVER, &sendData );
-
-void sendMessage() {
-  String msg = "Hi from node_2-";
-  msg += mesh.getNodeId();
-  mesh.sendBroadcast( msg );
-  taskSendMessage.setInterval( random( TASK_SECOND * 1, TASK_SECOND * 5 ));
-}
+Task tasksendData( TASK_SECOND * 5 , TASK_FOREVER, &sendData );
 
 
 void sendData() {
-//voeg hier je data toe
+  DynamicJsonDocument doc(1024);
+
+  doc["Sensor"] = "druksensor";
+  doc["Status"] = "AAN";
+
+  String message;
+  serializeJson(doc, message);
+  mesh.sendSingle(rootnodeID, message);
+
 }
 
 // // Needed for painless library
@@ -45,7 +46,7 @@ void changedConnectionCallback() {
 }
 
 void nodeTimeAdjustedCallback(int32_t offset) {
-    Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(),offset);
+  // Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(),offset);
 }
 
 
@@ -54,27 +55,22 @@ void setup() {
 
   //mesh setup
   mesh.setDebugMsgTypes( ERROR | STARTUP );  // set before init() so that you can see startup messages
-  mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT, WIFI_AP_STA, 13); // mesh init
+  mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler); // mesh init
   mesh.onReceive(&receivedCallback);
   mesh.onNewConnection(&newConnectionCallback);
   mesh.onChangedConnections(&changedConnectionCallback);
   mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
   mesh.setRoot(false);   
   // setup tasks
-  userScheduler.addTask(taskSendMessage);
   userScheduler.addTask(tasksendData);
-//   tasksendData.enable();
-  taskSendMessage.enable();
-//   if (tasksendData.isEnabled()) {
-//     Serial.println("tasksendData is enabled");
-//   } 
-    if (taskSendMessage.isEnabled()) {
-    Serial.println("taskSendMessage is enabled");
+  tasksendData.enable();
+  if (tasksendData.isEnabled()) {
+    Serial.println("tasksendData is enabled");
   } 
-
 }
 
 void loop() {
+  
   mesh.update();
 
 }
