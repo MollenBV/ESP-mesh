@@ -18,7 +18,7 @@ String jsonString;
 Scheduler userScheduler; // to control your personal task
 painlessMesh  mesh;
 int nodeNummer = 1; // node number
-
+int eerste = 0;
 //create functions
 void sendData();
 
@@ -26,6 +26,16 @@ void sendData();
 Task tasksendData( TASK_SECOND * 5 , TASK_FOREVER, &sendData );
 //mesh setup
 void meshsetup() {
+  if (eerste == 0) {  // Corrected the comparison operator and removed the semicolon
+    if (eerste == 1) {
+      while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+      }
+    }
+    eerste = 1;
+  }
+  
   mesh.setDebugMsgTypes( ERROR | STARTUP );  // set before init() so that you can see startup messages
   mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT, WIFI_AP_STA, 1); // mesh init
   mesh.onReceive(&receivedCallback);

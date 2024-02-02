@@ -9,6 +9,7 @@
 #define   MESH_PREFIX     "ESPMESH"
 #define   MESH_PASSWORD   "test1234"
 #define   MESH_PORT       5555
+#define HOSTNAME "Bridge"
 //servername
 const char* serverName = "http://192.168.1.1:5000/data";
 // variables to store last received message
@@ -19,8 +20,14 @@ Scheduler userScheduler; // to control your personal task
 painlessMesh  mesh;
 int nodeNummer = 1; // node number
 
-//create functions
-void sendData();
+IPAddress getlocalIP();
+
+IPAddress myIP(0.0.0.0);
+
+
+IPAddress getlocalIP() {
+  return IPAddress(mesh.getStationIP());
+}
 
 //create tasks
 Task tasksendData( TASK_SECOND * 5 , TASK_FOREVER, &sendData );
@@ -33,6 +40,8 @@ void meshsetup() {
   mesh.onChangedConnections(&changedConnectionCallback);
   mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
   mesh.stationManual(STATION_SSID, STATION_PASSWORD);
+  mesh.setHostname(HOSTNAME);
+  delay(1000);
   mesh.setRoot(true);  
   mesh.setContainsRoot(true);   
   while (!mesh.getNodeList().size()) {
@@ -42,47 +51,10 @@ void meshsetup() {
   }
 }
 
-// connect wifi and send data, then reconnect mesh
-void sendData() {
-  WiFi.mode(WIFI_STA);
-  Serial.println("WiFi is connecting:");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("WiFi connected.");
-  // Send HTTP POST request
-  HTTPClient http;
-  http.begin(serverName);
-  http.addHeader("Content-Type", "application/json");
-
-  // Serialize the JSON document to a string
-  String jsonData;
-  serializeJson(lastReceivedDruksensor, jsonData);
-  int httpResponseCode = http.POST(jsonData);
-  if (httpResponseCode > 0) {
-    Serial.print("HTTP Response code: ");
-    Serial.println(httpResponseCode);
-    String payload = http.getString();
-    Serial.println(payload);
-  }
-  else {
-    Serial.print("Error on sending POST: ");
-    Serial.println(httpResponseCode);
-  }
-  http.end();
-  WiFi.mode(WIFI_AP_STA);
-  meshsetup();
-}
 
 // // Needed for painless library
 void receivedCallback( uint32_t from, String &msg ) {
   Serial.printf("Received from %u msg=%s\n", from, msg.c_str());
-  DynamicJsonDocument newMessage(1024);
-  deserializeJson(newMessage, msg);
-  if (newMessage["Sensor"] == "druksensor") {
-    lastReceivedDruksensor = newMessage;
-  }
 }
 
 void newConnectionCallback(uint32_t nodeId) {
@@ -102,14 +74,14 @@ void setup() {
   Serial.begin(115200);
   //mesh setup
   meshsetup();
-  userScheduler.addTask(tasksendData);
-  tasksendData.enable();
-  if (tasksendData.isEnabled()) {
-    Serial.println("tasksendData is enabled");
-  } 
+
 }
 
 void loop() {
   mesh.update();
+  if(myIP != getlocalIP()){
+    myIP = getlocalIP();
+    Serial.println("My IP is " + myIP.toString());
+
 }
 
