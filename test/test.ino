@@ -32,6 +32,7 @@ void meshsetup() {
   mesh.onNewConnection(&newConnectionCallback);
   mesh.onChangedConnections(&changedConnectionCallback);
   mesh.onNodeTimeAdjusted(&nodeTimeAdjustedCallback);
+  mesh.stationManual(STATION_SSID, STATION_PASSWORD);
   mesh.setRoot(true);  
   mesh.setContainsRoot(true);   
   while (!mesh.getNodeList().size()) {
@@ -43,7 +44,7 @@ void meshsetup() {
 
 // connect wifi and send data, then reconnect mesh
 void sendData() {
-  WiFi.begin(ssid, password);
+  WiFi.mode(WIFI_STA);
   Serial.println("WiFi is connecting:");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -70,7 +71,7 @@ void sendData() {
     Serial.println(httpResponseCode);
   }
   http.end();
-  WiFi.disconnect(true);
+  WiFi.mode(WIFI_AP_STA);
   meshsetup();
 }
 
