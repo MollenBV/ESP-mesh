@@ -20,12 +20,11 @@ Scheduler userScheduler; // to control your personal task
 painlessMesh  mesh;
 WebSocketsClient webSocket;
 int nodeNummer = 1; // node number
-bool isConnected = false;
 
-//create functions
+//function
 void sendData();
 
-//create tasks
+//create task from function
 Task tasksendData( TASK_SECOND * 1 , TASK_FOREVER, &sendData );
 
 //websocket
@@ -33,11 +32,9 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
   switch (type) {
     case WStype_DISCONNECTED:
       Serial.printf("Disconnected!\n");
-      isConnected = false; // Update connection status
       break;
     case WStype_CONNECTED:
       Serial.printf("Connected to url: %s\n", payload);
-      isConnected = true;  // Update connection status
       // Send a message to the server
       webSocket.sendTXT("Hello from ESP32!");
       break;
@@ -55,10 +52,17 @@ void sendData() {
   Serial.println();
   // Send to Node-Red
   webSocket.sendTXT(message);
+  serializeJson(lastReceivedBewegingsensor, message);
+  Serial.println();
+  // Send to Node-Red
+  webSocket.sendTXT(message);
 }
 
 // // Needed for painless library
 void receivedCallback( uint32_t from, String &msg ) {
+  if (msg == "Ack") {
+    return;
+  }
   Serial.printf("Received from %u msg=%s\n", from, msg.c_str());
   DynamicJsonDocument newMessage(1024);
   deserializeJson(newMessage, msg);
@@ -68,6 +72,14 @@ void receivedCallback( uint32_t from, String &msg ) {
   if (newMessage["Sensor"] == "Bewegingsensor") {
     lastReceivedBewegingsensor = newMessage;
   }
+  if (from == 629928573) {
+    return;
+  }
+  int sequencenumber;
+  sequencenumber = newMessage["SequenceNumber"];
+  String ackMessage = "Ack " + String(sequencenumber) + "\n";
+  Serial.printf("stuurt ack naar %u\n",from);
+  mesh.sendSingle(from, ackMessage);
 }
 
 void newConnectionCallback(uint32_t nodeId) {
@@ -86,9 +98,8 @@ void nodeTimeAdjustedCallback(int32_t offset) {
 void setup() {
   Serial.begin(115200);
   //setup wifi
-  WiFi.setSleep(false);  // Turn off power safe feature
-  WiFi.disconnect();     //Anti bug function
-  WiFi.begin(ssid, password);  //begin Wifi 
+  WiFi.disconnect();     // required or it will sometimes not form mesh
+  WiFi.begin(ssid, password);  // connect to wifi
   //setup websocket
   webSocket.begin("192.168.1.1", 1880, "/data");  //Connect to Node-Red Websocket on this IP, Port and location
   webSocket.onEvent(webSocketEvent);                     
@@ -117,6 +128,7 @@ void setup() {
 
 void loop() {
   webSocket.loop(); // Continue to maintain WebSocket connection
-  mesh.update();
+  mesh.update(); // Continue to maintain Mesh connection
 }
+
 
