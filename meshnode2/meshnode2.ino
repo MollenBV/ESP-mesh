@@ -60,45 +60,8 @@ void sendData() {
   String message;
   serializeJson(doc, message);
   mesh.sendSingle(rootnodeID, message);
-
 }
 
-// void checktreshhold() {
-  // int lightValue = analogRead(LIGHT_SENSOR_PIN);
-  // int forceValue = analogRead(FORCE_SENSOR_PIN);
-
-  // // Determine if it's dark
-  // isDark = lightValue < ANALOG_THRESHOLD;
-
-  // // Check if force is below threshold
-  // if (forceValue < FORCE_THRESHOLD) {
-  //   force = false;
-  //   if (forceBelowThresholdTime == 0) {
-  //     // Start the timer
-  //     forceBelowThresholdTime = millis();
-  //   } else if (millis() - forceBelowThresholdTime >= TIMEOUT) {
-  //     // Turn off the LED after 5 seconds of low force
-  //     digitalWrite(LED_PIN, LOW);
-  //   }
-  // } else {
-  //   force = true;
-  //   // Reset timer
-  //   forceBelowThresholdTime = 0;
-
-  //   if (isDark && forceValue >= FORCE_THRESHOLD) {
-  //     digitalWrite(LED_PIN, HIGH);
-  //   } else {
-  //     digitalWrite(LED_PIN, LOW);
-  //   }
-  // }
-
-  // Serial.print("Light Value = ");
-  // Serial.print(lightValue);
-  // Serial.print(", Force Value = ");
-  // Serial.println(forceValue);
-
-  // delay(250);
-// }
 
 void setup() {
   Serial.begin(115200);
@@ -118,18 +81,6 @@ void setup() {
     mesh.update(); // Update the mesh network
     Serial.println("waiting for nodes to connect");
   }
-  // // setup senddata tasks
-  // userScheduler.addTask(tasksendData);
-  // tasksendData.enable();
-  // if (tasksendData.isEnabled()) {
-  //   Serial.println("tasksendData is enabled");
-  // } 
-  // // setup force read task
-  // userScheduler.addTask(taskchecktreshhold);
-  // taskchecktreshhold.enable();
-  // if (taskchecktreshhold.isEnabled()) {
-  //   Serial.println("tasksendData is enabled");
-  // } 
 }
 
 void loop() {

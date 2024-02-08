@@ -2,8 +2,7 @@
 #include <ArduinoJson.h>
 #include "secret.h"
 #include <WebSocketsClient.h>
-
-//setup mesh
+// Mesh settings
 #define   MESH_PREFIX     "ESPMESH"
 #define   MESH_PASSWORD   "test1234"
 #define   MESH_PORT       5555
@@ -17,8 +16,8 @@ DynamicJsonDocument lastReceivedBewegingsensor(1024); // Adjust the size to fit 
 
 //define mesh variables
 Scheduler userScheduler; // to control your personal task
-painlessMesh  mesh;
-WebSocketsClient webSocket;
+painlessMesh  mesh; // needed voor the mesh
+WebSocketsClient webSocket; // needed for the websocket
 int nodeNummer = 1; // node number
 
 //function
@@ -27,14 +26,16 @@ void sendData();
 //create task from function
 Task tasksendData( TASK_SECOND * 1 , TASK_FOREVER, &sendData );
 
-//websocket
+//websocket event
 void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
   switch (type) {
     case WStype_DISCONNECTED:
       Serial.printf("Disconnected!\n");
+      isConnected = false; // Update connection status
       break;
     case WStype_CONNECTED:
       Serial.printf("Connected to url: %s\n", payload);
+      isConnected = true;  // Update connection status
       // Send a message to the server
       webSocket.sendTXT("Hello from ESP32!");
       break;
@@ -44,7 +45,7 @@ void webSocketEvent(WStype_t type, uint8_t* payload, size_t length) {
   }
 }
 
-// connect wifi and send data, then reconnect mesh
+// serialize the last received message's from the ESP sensor nodes then send them via the websocket to the node-red.
 void sendData() {
   //Json to String
   String message;
@@ -58,40 +59,32 @@ void sendData() {
   webSocket.sendTXT(message);
 }
 
-// // Needed for painless library
+// activates when message is received from another mesh
 void receivedCallback( uint32_t from, String &msg ) {
-  if (msg == "Ack") {
-    return;
-  }
   Serial.printf("Received from %u msg=%s\n", from, msg.c_str());
-  DynamicJsonDocument newMessage(1024);
-  deserializeJson(newMessage, msg);
-  if (newMessage["Sensor"] == "druksensor") {
-    lastReceivedDruksensor = newMessage;
+  DynamicJsonDocument newMessage(1024); // create json document
+  deserializeJson(newMessage, msg); // deserialize the json message and load it into newMessage
+  // if the message is from the Forcesensor load the newMessage to the lastReceivedForcesensor variable
+  if (newMessage["Sensor"] == "Forcesensor") { 
+    lastReceivedForcesensor = newMessage;
   }
-  if (newMessage["Sensor"] == "Bewegingsensor") {
-    lastReceivedBewegingsensor = newMessage;
+   // if the message is from the Movementsensor load the newMessage to the lastReceivedMovementsensor variable
+  if (newMessage["Sensor"] == "Movementsensor") {
+    lastReceivedMovementsensor = newMessage;
   }
-  if (from == 629928573) {
-    return;
-  }
-  int sequencenumber;
-  sequencenumber = newMessage["SequenceNumber"];
-  String ackMessage = "Ack " + String(sequencenumber) + "\n";
-  Serial.printf("stuurt ack naar %u\n",from);
+  if (newMessage["SequenceNumber"]){ // if the new message has a sequence number
+  // send an Acknowledge message back
+  String ackMessage = "Ack";
   mesh.sendSingle(from, ackMessage);
+  }
 }
-
+// Changedconnection
 void newConnectionCallback(uint32_t nodeId) {
   Serial.printf("--> startHere: New Connection, nodeId = %u\n", nodeId);
 }
-
+// Changedconnection
 void changedConnectionCallback() {
   Serial.printf("Changed connections\n");
-}
-
-void nodeTimeAdjustedCallback(int32_t offset) {
-  // Serial.printf("Adjusted time %u. Offset = %d\n", mesh.getNodeTime(),offset);
 }
 
 
@@ -102,23 +95,23 @@ void setup() {
   WiFi.begin(ssid, password);  // connect to wifi
   //setup websocket
   webSocket.begin("192.168.1.1", 1880, "/data");  //Connect to Node-Red Websocket on this IP, Port and location
-  webSocket.onEvent(webSocketEvent);                     
-  webSocket.setReconnectInterval(4000);
+  webSocket.onEvent(webSocketEvent);  // wel tell if it is connected or not                   
+  webSocket.setReconnectInterval(4000); // interval in at which rate to connect
   //setup mesh
-  mesh.setDebugMsgTypes(ERROR | STARTUP);  // set before init() so that you can see startup messages
-  mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT, WIFI_AP_STA, 1);  //connect with the general Mesh. Should be the same for every node
-  mesh.stationManual(STATION_SSID, STATION_PASSWORD);  //Connect with the outside network
-  mesh.onReceive(&receivedCallback);
-  mesh.onNewConnection(&newConnectionCallback);
+  mesh.setDebugMsgTypes(ERROR | STARTUP);  // For Startup messages
+  mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT, WIFI_AP_STA, 1);  // initialize mesh
+  mesh.stationManual(STATION_SSID, STATION_PASSWORD);  //Connect to the Raspberri AP
+  mesh.onReceive(&receivedCallback); // set the receivedCallback function
+  mesh.onNewConnection(&newConnectionCallback); // set the newConnectionCallback function
   mesh.setRoot(true);                                  //this is the root Node in the Mesh
-  mesh.setContainsRoot(true); 
+  mesh.setContainsRoot(true);  // the mesh knows there is a root node
   // wait till mesh is connected
   while (!mesh.getNodeList().size()) {
     delay(1000); // Wait for 1 second
     mesh.update(); // Update the mesh network
     Serial.println("waiting for nodes to connect");
   }
-  // 
+  // enable the task send data
   userScheduler.addTask(tasksendData);
   tasksendData.enable();
   if (tasksendData.isEnabled()) {
@@ -127,8 +120,7 @@ void setup() {
 }
 
 void loop() {
-  webSocket.loop(); // Continue to maintain WebSocket connection
+  webSocket.loop(); // Continue to maintain Websocket connection
   mesh.update(); // Continue to maintain Mesh connection
 }
-
 
