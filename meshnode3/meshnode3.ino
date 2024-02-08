@@ -2,10 +2,10 @@
 #include <ArduinoJson.h>
 #include <list>
 // Mesh settings
-#define MESH_PREFIX     "ESPMESH"
-#define MESH_PASSWORD   "test1234"
-#define MESH_PORT       5555
-//define mesh variables
+#define MESH_PREFIX "ESPMESH"
+#define MESH_PASSWORD "test1234"
+#define MESH_PORT 5555
+// define mesh variables
 Scheduler userScheduler;
 painlessMesh mesh;
 // root node ID and node number
@@ -14,7 +14,7 @@ int nodeNummer = 3;
 
 #define RXp2 16
 #define TXp2 17
-// 
+//
 int entrancePoint = 0;
 int beforePassportPoint = 0;
 int afterPassportPoint = 0;
@@ -30,14 +30,16 @@ std::list<uint8_t> sentSequenceNumbers;
 // Time variables for delay
 unsigned long lastTransmissionTime = 0;
 
-void sendData() {
+void sendData()
+{
   // Increase entrancePoint and sequenceNumber
   entrancePoint++;
   sequenceNumber++;
 
   // Increase sequenceNumber and reset to 0 if it reaches 1024
   sequenceNumber++;
-  if (sequenceNumber == 1024) {
+  if (sequenceNumber == 1024)
+  {
     sequenceNumber = 0;
   }
   DynamicJsonDocument doc(200);
@@ -63,12 +65,15 @@ void sendData() {
 
 void checkForArduinoData();
 
-void checkForArduinoData() {
-  if (Serial2.available()) {
+void checkForArduinoData()
+{
+  if (Serial2.available())
+  {
     String message = Serial2.readString();
     Serial.println(message);
 
-    if (message.equals("Beweging")) {
+    if (message.equals("Beweging"))
+    {
       sendData();
     }
   }
@@ -76,23 +81,28 @@ void checkForArduinoData() {
 
 Task taskCheckForArduinoData(TASK_SECOND * 0.4, TASK_FOREVER, &checkForArduinoData);
 
-void receivedCallback(uint32_t from, String &msg) {
+void receivedCallback(uint32_t from, String &msg)
+{
   Serial.printf("Received from %u msg=%s\n", from, msg.c_str());
 
   DynamicJsonDocument doc(200);
   deserializeJson(doc, msg);
 
   // Check if the received message is from the root node
-  if (from == rootnodeID) {
+  if (from == rootnodeID)
+  {
     // If it's an acknowledgment message
-    if (doc.containsKey("Ack")) {
+    if (doc.containsKey("Ack"))
+    {
       uint8_t ackedSequenceNumber = doc["SequenceNumber"];
       Serial.println("Received Acknowledgment for sequence number: " + String(ackedSequenceNumber));
 
       // Remove the acknowledged sequence number from the list
       sentSequenceNumbers.remove(ackedSequenceNumber);
     }
-  } else {
+  }
+  else
+  {
     // If it's a regular message from a non-root node
     // Process the received message as needed
 
@@ -106,32 +116,37 @@ void receivedCallback(uint32_t from, String &msg) {
   }
 }
 // Changedconnection
-void newConnectionCallback(uint32_t nodeId) {
+void newConnectionCallback(uint32_t nodeId)
+{
   Serial.printf("New Connection, nodeId = %u\n", nodeId);
 }
 // Changedconnection
-void changedConnectionCallback() {
+void changedConnectionCallback()
+{
   Serial.println("Changed connections");
 }
 
-void setup() {
+void setup()
+{
   Serial.begin(115200);
   Serial2.begin(9600, SERIAL_8N1, RXp2, TXp2);
 
-  mesh.setDebugMsgTypes(ERROR | STARTUP);  // For Startup messages
-  mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT, WIFI_AP_STA, 1);  // initialize mesh
-  mesh.onReceive(&receivedCallback); // set the receivedCallback function
-  mesh.onNewConnection(&newConnectionCallback); // set the newConnectionCallback function
+  mesh.setDebugMsgTypes(ERROR | STARTUP);                                           // For Startup messages
+  mesh.init(MESH_PREFIX, MESH_PASSWORD, &userScheduler, MESH_PORT, WIFI_AP_STA, 1); // initialize mesh
+  mesh.onReceive(&receivedCallback);                                                // set the receivedCallback function
+  mesh.onNewConnection(&newConnectionCallback);                                     // set the newConnectionCallback function
   mesh.onChangedConnections(&changedConnectionCallback);
   mesh.setRoot(false); // this is not the root node
   // enable CheckForArduinoData task
   userScheduler.addTask(taskCheckForArduinoData);
   taskCheckForArduinoData.enable();
-  if (taskCheckForArduinoData.isEnabled()) {
+  if (taskCheckForArduinoData.isEnabled())
+  {
     Serial.println("taskCheckForArduinoData is enabled");
   }
 }
 
-void loop() {
+void loop()
+{
   mesh.update(); // keep the mesh alive
 }
